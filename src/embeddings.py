@@ -27,9 +27,8 @@ def embed_texts(texts: List[str]) -> List[List[float]]:
     embeddings = []
     for text in texts:
         result = genai.embed_content(
-            model="models/embedding-001",
+            model="models/text-embedding-004",
             content=text,
-            task_type="retrieval_document",
         )
         embeddings.append(result["embedding"])
     return embeddings
@@ -38,13 +37,11 @@ def embed_texts(texts: List[str]) -> List[List[float]]:
 def embed_query(query: str) -> List[float]:
     """
     Embed a single query string.
-    Uses retrieval_query task type for better search performance.
     """
     _get_client()
     result = genai.embed_content(
-        model="models/embedding-001",
+        model="models/text-embedding-004",
         content=query,
-        task_type="retrieval_query",
     )
     return result["embedding"]
 
