@@ -21,22 +21,17 @@ def _get_client():
 def embed_texts(texts: List[str]) -> List[List[float]]:
     """
     Embed a list of text strings using Google's text-embedding model.
-    Returns a list of embedding vectors.
+    Embeds one at a time for maximum compatibility.
     """
-    client = _get_client()
+    _get_client()
     embeddings = []
-
-    # Batch in groups of 100 to stay within API limits
-    batch_size = 100
-    for i in range(0, len(texts), batch_size):
-        batch = texts[i: i + batch_size]
+    for text in texts:
         result = genai.embed_content(
-            model="models/text-embedding-004",
-            content=batch,
+            model="models/embedding-001",
+            content=text,
             task_type="retrieval_document",
         )
-        embeddings.extend(result["embedding"])
-
+        embeddings.append(result["embedding"])
     return embeddings
 
 
@@ -45,9 +40,9 @@ def embed_query(query: str) -> List[float]:
     Embed a single query string.
     Uses retrieval_query task type for better search performance.
     """
-    client = _get_client()
+    _get_client()
     result = genai.embed_content(
-        model="models/text-embedding-004",
+        model="models/embedding-001",
         content=query,
         task_type="retrieval_query",
     )
