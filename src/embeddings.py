@@ -1,7 +1,5 @@
 """
-embeddings.py
-Handles text embedding using Google's Gemini embedding model
-and cosine similarity search.
+embeddings.py - Simple & Stable version for Gemini Embedding
 """
 
 import os
@@ -11,16 +9,14 @@ import google.generativeai as genai
 
 
 def _get_client():
-    """Configure Gemini API client."""
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise ValueError("GEMINI_API_KEY not set. Please enter your API key in the sidebar.")
     genai.configure(api_key=api_key)
-    return genai
 
 
 def embed_texts(texts: List[str]) -> List[List[float]]:
-    """Embed a list of text strings."""
+    """Embed document chunks - simple and stable"""
     _get_client()
     embeddings = []
     
@@ -28,43 +24,40 @@ def embed_texts(texts: List[str]) -> List[List[float]]:
         try:
             result = genai.embed_content(
                 model="models/gemini-embedding-001",
-                content=text,
-                task_type="retrieval_document"
+                content=text
+                # task_type removed - causing issues on Streamlit Cloud
             )
             embeddings.append(result["embedding"])
             
-            if (i + 1) % 10 == 0 or i == len(texts) - 1:
-                print(f"Embedded {i+1}/{len(texts)} chunks")
+            if (i + 1) % 8 == 0 or i == len(texts) - 1:
+                print(f"✅ Embedded {i+1}/{len(texts)} chunks")
                 
         except Exception as e:
-            print(f"Error embedding chunk {i}: {str(e)}")
+            print(f"❌ Embedding error on chunk {i}: {str(e)[:200]}")
             raise
     
     return embeddings
 
 
 def embed_query(query: str) -> List[float]:
-    """Embed a single user query."""
+    """Embed user query"""
     _get_client()
     result = genai.embed_content(
         model="models/gemini-embedding-001",
-        content=query,
-        task_type="retrieval_query"
+        content=query
     )
     return result["embedding"]
 
 
 def build_vector_store(chunks: List[str]) -> np.ndarray:
-    """Build vector store from chunks."""
-    print(f"🔄 Embedding {len(chunks)} chunks...")
+    print(f"🔄 Starting to embed {len(chunks)} chunks...")
     embeddings = embed_texts(chunks)
     vector_store = np.array(embeddings, dtype=np.float32)
-    print(f"✅ Vector store built! Shape: {vector_store.shape}")
+    print(f"✅ Vector store created successfully! Shape: {vector_store.shape}")
     return vector_store
 
 
 def cosine_similarity(vec_a: np.ndarray, vec_b: np.ndarray) -> float:
-    """Compute cosine similarity."""
     dot = np.dot(vec_a, vec_b)
     norm_a = np.linalg.norm(vec_a)
     norm_b = np.linalg.norm(vec_b)
@@ -79,7 +72,6 @@ def retrieve_relevant_chunks(
     chunks: List[str],
     top_k: int = 4
 ) -> List[str]:
-    """Retrieve top-k relevant chunks."""
     query_embedding = np.array(embed_query(query), dtype=np.float32)
 
     similarities = []
