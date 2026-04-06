@@ -1,73 +1,40 @@
 """
 gemini_chat.py
-Handles generating answers using Google Gemini,
-grounded in the retrieved context chunks (RAG).
+Handles RAG prompt and response generation using Gemini.
 """
 
-import os
-from typing import List
 import google.generativeai as genai
+from typing import List
 
-
-SYSTEM_PROMPT = """You are a helpful document assistant. Your job is to answer questions 
-based ONLY on the provided context extracted from the user's PDF document.
-
-Rules:
-- Answer only from the given context. Do not use outside knowledge.
-- If the answer is not in the context, say: "I couldn't find information about that in the document."
-- Be clear, concise, and accurate.
-- If quoting from the document, keep quotes short and relevant.
-- If asked to summarize, use bullet points for clarity.
-"""
-
-
-def get_gemini_response(question: str, context_chunks: List[str]) -> str:
+def get_gemini_response(query: str, relevant_chunks: List[str]) -> str:
     """
-    Generate an answer to the question using Gemini,
-    grounded in the provided context chunks.
-
-    Args:
-        question: User's question
-        context_chunks: Relevant text chunks retrieved from the PDF
-
-    Returns:
-        Gemini's answer as a string
+    Generate response using Gemini with retrieved context.
     """
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        return "❌ API key not found. Please enter your Gemini API key in the sidebar."
+    try:
+        # Use a currently supported stable model (April 2026)
+        model = genai.GenerativeModel('gemini-2.0-flash')   # ← Updated model
 
-    genai.configure(api_key=api_key)
+        # Create context from retrieved chunks
+        context = "\n\n".join(relevant_chunks)
 
-    # Build context string from retrieved chunks
-    context = "\n\n---\n\n".join(
-        [f"[Chunk {i+1}]:\n{chunk}" for i, chunk in enumerate(context_chunks)]
-    )
+        prompt = f"""
+You are a helpful assistant that answers questions based ONLY on the provided context from a PDF document.
+If the answer is not in the context, say "I don't have enough information from the document to answer this."
 
-    # Construct the prompt
-    prompt = f"""{SYSTEM_PROMPT}
-
----
-CONTEXT FROM DOCUMENT:
+Context from PDF:
 {context}
 
----
-USER QUESTION:
-{question}
+Question: {query}
 
----
-YOUR ANSWER:"""
+Answer:
+"""
 
-    try:
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.types.GenerationConfig(
-                temperature=0.2,        # Low temperature = more factual, less creative
-                max_output_tokens=1024,
-            )
-        )
-        return response.text
+        response = model.generate_content(prompt)
+        return response.text.strip()
 
     except Exception as e:
-        return f"❌ Gemini API error: {str(e)}\n\nPlease check your API key and try again."
+        error_msg = str(e)
+        if "404" in error_msg or "not found" in error_msg.lower():
+            return "❌ Model error: The Gemini model is temporarily unavailable. Please try again in a minute."
+        else:
+            return f"❌ Error generating response: {error_msg[:200]}"
