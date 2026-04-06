@@ -1,6 +1,6 @@
 """
 gemini_chat.py
-Handles RAG prompt and response generation using Gemini.
+Handles RAG prompt and response generation using Gemini (updated April 2026)
 """
 
 import google.generativeai as genai
@@ -11,30 +11,29 @@ def get_gemini_response(query: str, relevant_chunks: List[str]) -> str:
     Generate response using Gemini with retrieved context.
     """
     try:
-        # Use a currently supported stable model (April 2026)
-        model = genai.GenerativeModel('gemini-2.0-flash')   # ← Updated model
+        # Use a currently supported stable model
+        model = genai.GenerativeModel('gemini-2.5-flash')   # ← This is the recommended stable model right now
 
-        # Create context from retrieved chunks
         context = "\n\n".join(relevant_chunks)
 
         prompt = f"""
-You are a helpful assistant that answers questions based ONLY on the provided context from a PDF document.
-If the answer is not in the context, say "I don't have enough information from the document to answer this."
+You are a helpful assistant. Answer the question based ONLY on the following context from the PDF.
+If the answer is not in the context, clearly say "I don't have enough information in the document to answer this."
 
-Context from PDF:
+Context:
 {context}
 
 Question: {query}
 
-Answer:
+Answer in a clear and concise way:
 """
 
         response = model.generate_content(prompt)
         return response.text.strip()
 
     except Exception as e:
-        error_msg = str(e)
-        if "404" in error_msg or "not found" in error_msg.lower():
-            return "❌ Model error: The Gemini model is temporarily unavailable. Please try again in a minute."
+        error_str = str(e).lower()
+        if "404" in error_str or "not found" in error_str:
+            return "❌ The Gemini model is temporarily unavailable. Please wait 30 seconds and try asking again."
         else:
-            return f"❌ Error generating response: {error_msg[:200]}"
+            return f"❌ Sorry, I encountered an error while generating the answer: {str(e)[:150]}"
