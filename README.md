@@ -1,4 +1,29 @@
 # 📄 Chat with PDF — Gemini RAG App
+# 📄 Chat with PDF
+
+**Live Demo** → [Try the App Here](https://chat-with-pdf130.streamlit.app/)
+
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://chat-with-pdf130.streamlit.app/)
+
+---
+
+### What is this?
+This is a **Chat with PDF** application.  
+Upload any PDF (notes, research paper, contract, book, etc.) and ask questions about it.  
+The app answers using only the content inside your PDF.
+
+### Tech Stack
+- **Frontend**: Streamlit
+- **AI**: Google Gemini (Embedding + Generation)
+- **RAG**: Built from scratch (no LangChain)
+- **Vector Search**: NumPy + Cosine Similarity
+
+### How to Run Locally
+```bash
+git clone https://github.com/iamsiddhant13m/chat-with-pdf.git
+cd chat-with-pdf
+pip install -r requirements.txt
+streamlit run app.py
 
 A beginner-friendly AI project that lets you **upload any PDF and chat with it** using Google Gemini and a Retrieval-Augmented Generation (RAG) pipeline. Built with Python and Streamlit.
 
