@@ -7,7 +7,7 @@ from src.gemini_chat import get_gemini_response
 
 st.set_page_config(page_title="Chat with PDF", page_icon="📄", layout="centered")
 
-# Safe Session State Initialization
+# Initialize session state safely
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "vector_store" not in st.session_state:
@@ -21,13 +21,13 @@ if "pdf_name" not in st.session_state:
 with st.sidebar:
     st.title("⚙️ Setup")
     api_key = st.text_input("Gemini API Key", type="password", placeholder="AIzaSy...")
-    
+
     if api_key:
         os.environ["GEMINI_API_KEY"] = api_key
 
     st.divider()
     st.subheader("📄 Upload PDF")
-    uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
+    uploaded_file = st.file_uploader("Choose a PDF file", type=["pdf"])
 
     if uploaded_file and api_key:
         if st.session_state.pdf_name != uploaded_file.name:
@@ -40,48 +40,50 @@ with st.sidebar:
                     st.session_state.vector_store = vector_store
                     st.session_state.chunks = chunks
                     st.session_state.pdf_name = uploaded_file.name
-                    st.session_state.messages = []   # Clear old chat
+                    st.session_state.messages = []  # Reset chat for new PDF
 
                     st.success(f"✅ Indexed {len(chunks)} chunks from **{uploaded_file.name}**")
                 except Exception as e:
-                    st.error(f"❌ Error: {str(e)}")
+                    st.error(f"❌ Error processing PDF: {str(e)}")
 
     if st.session_state.pdf_name:
         st.info(f"**Active PDF:** {st.session_state.pdf_name}")
-        st.info(f"**Chunks:** {len(st.session_state.chunks)}")
+        st.info(f"**Chunks indexed:** {len(st.session_state.chunks)}")
 
     if st.button("🗑️ Clear Chat"):
         st.session_state.messages = []
         st.rerun()
 
-# Main Area
+# Main Title
 st.title("📄 Chat with your PDF")
-st.caption("Ask anything about the uploaded PDF")
+st.caption("Upload a PDF and ask anything about it")
 
-# Display chat messages
+# Show previous messages
 for msg in st.session_state.messages:
     if msg["role"] == "user":
         st.chat_message("user").write(msg["content"])
     else:
         st.chat_message("assistant").write(msg["content"])
 
-# Chat Input
+# Chat input area
 if not api_key:
-    st.info("👈 Enter your Gemini API Key in the sidebar to continue.")
+    st.info("👈 Please enter your Gemini API Key in the sidebar.")
 elif st.session_state.vector_store is None:
-    st.info("👈 Upload a PDF in the sidebar to start chatting.")
+    st.info("👈 Please upload a PDF in the sidebar to start chatting.")
 else:
     if prompt := st.chat_input("Ask a question about the PDF..."):
+        # Add user message
         st.session_state.messages.append({"role": "user", "content": prompt})
         
-        with st.spinner("🤖 Thinking..."):
+        with st.spinner("🤖 Gemini is thinking..."):
             relevant_chunks = retrieve_relevant_chunks(
                 prompt, 
                 st.session_state.vector_store, 
                 st.session_state.chunks, 
                 top_k=4
             )
-            response = get_gemini_response(prompt, relevant_chunks)
+            answer = get_gemini_response(prompt, relevant_chunks)
 
-        st.session_state.messages.append({"role": "assistant", "content": response})
+        # Add assistant response
+        st.session_state.messages.append({"role": "assistant", "content": answer})
         st.rerun()
