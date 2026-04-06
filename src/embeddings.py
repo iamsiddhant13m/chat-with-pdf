@@ -1,16 +1,17 @@
 """
 embeddings.py
-Handles text embedding using Google's embedding model
-and cosine similarity search (no external vector DB needed).
+Handles text embedding using Google's Gemini embedding model
+and cosine similarity search.
 """
 
 import os
 import numpy as np
-from typing import List, Tuple
+from typing import List
 import google.generativeai as genai
 
 
 def _get_client():
+    """Configure Gemini API client."""
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise ValueError("GEMINI_API_KEY not set. Please enter your API key in the sidebar.")
@@ -19,49 +20,51 @@ def _get_client():
 
 
 def embed_texts(texts: List[str]) -> List[List[float]]:
-    """
-    Embed a list of text strings using Google's text-embedding model.
-    Embeds one at a time for maximum compatibility.
-    """
+    """Embed a list of text strings."""
     _get_client()
     embeddings = []
-    for text in texts:
-        result = genai.embed_content(
-            model="models/text-embedding-004",
-            content=text,
-        )
-        embeddings.append(result["embedding"])
+    
+    for i, text in enumerate(texts):
+        try:
+            result = genai.embed_content(
+                model="models/gemini-embedding-001",
+                content=text,
+                task_type="retrieval_document"
+            )
+            embeddings.append(result["embedding"])
+            
+            if (i + 1) % 10 == 0 or i == len(texts) - 1:
+                print(f"Embedded {i+1}/{len(texts)} chunks")
+                
+        except Exception as e:
+            print(f"Error embedding chunk {i}: {str(e)}")
+            raise
+    
     return embeddings
 
 
 def embed_query(query: str) -> List[float]:
-    """
-    Embed a single query string.
-    """
+    """Embed a single user query."""
     _get_client()
     result = genai.embed_content(
-        model="models/text-embedding-004",
+        model="models/gemini-embedding-001",
         content=query,
+        task_type="retrieval_query"
     )
     return result["embedding"]
 
 
 def build_vector_store(chunks: List[str]) -> np.ndarray:
-    """
-    Build an in-memory vector store from text chunks.
-
-    Args:
-        chunks: List of text chunks to embed
-
-    Returns:
-        numpy array of shape (num_chunks, embedding_dim)
-    """
+    """Build vector store from chunks."""
+    print(f"🔄 Embedding {len(chunks)} chunks...")
     embeddings = embed_texts(chunks)
-    return np.array(embeddings, dtype=np.float32)
+    vector_store = np.array(embeddings, dtype=np.float32)
+    print(f"✅ Vector store built! Shape: {vector_store.shape}")
+    return vector_store
 
 
 def cosine_similarity(vec_a: np.ndarray, vec_b: np.ndarray) -> float:
-    """Compute cosine similarity between two vectors."""
+    """Compute cosine similarity."""
     dot = np.dot(vec_a, vec_b)
     norm_a = np.linalg.norm(vec_a)
     norm_b = np.linalg.norm(vec_b)
@@ -76,34 +79,14 @@ def retrieve_relevant_chunks(
     chunks: List[str],
     top_k: int = 4
 ) -> List[str]:
-    """
-    Retrieve the top-k most relevant chunks for a given query.
-
-    This is the core of the RAG pipeline:
-    1. Embed the query
-    2. Compute cosine similarity against all chunk embeddings
-    3. Return the top-k chunks by similarity score
-
-    Args:
-        query: User's question
-        vector_store: Pre-built numpy array of chunk embeddings
-        chunks: Original text chunks (parallel to vector_store rows)
-        top_k: Number of chunks to retrieve
-
-    Returns:
-        List of the most relevant text chunks
-    """
+    """Retrieve top-k relevant chunks."""
     query_embedding = np.array(embed_query(query), dtype=np.float32)
 
-    # Compute similarity between query and every chunk
     similarities = []
     for i, chunk_embedding in enumerate(vector_store):
         score = cosine_similarity(query_embedding, chunk_embedding)
         similarities.append((score, i))
 
-    # Sort descending by similarity score
     similarities.sort(key=lambda x: x[0], reverse=True)
-
-    # Return top-k chunk texts
     top_chunks = [chunks[idx] for _, idx in similarities[:top_k]]
     return top_chunks
